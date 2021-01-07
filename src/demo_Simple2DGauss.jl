@@ -3,10 +3,11 @@
 
 using PyPlot
 using Distributions
+using LinearAlgebra
 
 function calc_KL(mu1, lambda1, mu2, lambda2)
     D = size(mu1, 1)
-    px_lnqx = 0.5 * logdet(lambda2) - 0.5 * ((mu1 - mu2)' * lambda2 * (mu1 - mu2) + trace(lambda2 * inv(lambda1)))
+    px_lnqx = 0.5 * logdet(lambda2) - 0.5 * ((mu1 - mu2)' * lambda2 * (mu1 - mu2) + tr(lambda2 * inv(lambda1)))
     px_lnpx = 0.5 * logdet(lambda1) - 0.5 * D
     KL = - (px_lnqx - px_lnpx)
     return KL[1]
@@ -47,7 +48,7 @@ function plot_gaussian(Mu, Sigma, col, label)
     res = 100
     plot(Mu[1], Mu[2], "x", color=col)
     
-    F = eigfact(Sigma)
+    F = eigen(Sigma)
     vec = F.vectors
     val = F.values
     dw = 2*pi/res
@@ -82,8 +83,8 @@ function main_VI()
     
     ## main iteration
     max_iter = 10
-    KL = NaN * Array{Float64, 1}(max_iter)
-    result = Array{Any, 1}(max_iter)
+    KL = NaN * Array{Float64, 1}(undef, max_iter)
+    result = Array{Any, 1}(undef, max_iter)
     for i in 1 : max_iter
         ## update
         mu_h[1] = mu[1] - inv(lambda[1,1])*lambda[1,2] * (mu_h[2] - mu[2])
@@ -136,12 +137,12 @@ function main_GS()
 
     ## initialize
     #max_iter = 1000
-    max_iter = 50
+    max_iter = 200
     X = randn(D, max_iter)
     mu_h = randn(D)
     
     ## main iteration
-    KL = NaN * Array{Float64, 1}(max_iter)
+    KL = NaN * Array{Float64, 1}(undef, max_iter)
     for i in 2 : max_iter
         ## update
         mu_h[1] = mu[1] - inv(lambda[1,1])*lambda[1,2] * (X[2,i-1] - mu[2])
@@ -151,13 +152,13 @@ function main_GS()
         X[2, i] = rand(Normal(mu_h[2], sqrt(inv(lambda[2,2]))))        
         
         if i > D
-            KL[i] = calc_KL(mean(X[:,1:i], 2), inv(cov(X[:,1:i], 2)), mu, lambda)
+            KL[i] = calc_KL(mean(X[:,1:i], dims=2)[:,1], inv(cov(X[:,1:i], dims=2)), mu, lambda)
         end
     end
     
     ## visualize results
-    expt_mu = mean(X, 2)
-    expt_Sigma = cov(X, 2)
+    expt_mu = mean(X, dims=2)
+    expt_Sigma = cov(X, dims=2)
 
     figure("samples (GS)")
     clf()
